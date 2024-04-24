@@ -30,8 +30,8 @@ def _with_sys_path(path):
 package_root = pathlib.Path(os.path.dirname(os.path.realpath(__file__))).parent.parent.parent
 
 with _with_sys_path(package_root):
-    from util.torchtext_legacy.field import Field
-    from util.torchtext_legacy.translation import TranslationDataset, Multi30k
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.field import Field
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.translation import TranslationDataset, Multi30k
 
 import transformer.Constants as Constants
 from learn_bpe import learn_bpe

@@ -37,10 +37,10 @@ def _with_sys_path(path):
 package_root = pathlib.Path(os.path.dirname(os.path.realpath(__file__))).parent.parent.parent
 
 with _with_sys_path(package_root):
-    from util.torchtext_legacy.field import Field
-    from util.torchtext_legacy.data import Dataset
-    from util.torchtext_legacy.iterator import BucketIterator
-    from util.torchtext_legacy.translation import TranslationDataset
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.field import Field
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.data import Dataset
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.iterator import BucketIterator
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.translation import TranslationDataset
 
 # from .transformer import Constants
 # from .transformer.Models import Transformer
@@ -48,9 +48,9 @@ with _with_sys_path(package_root):
 import random
 import numpy as np
 
-from transformer import Constants
-from transformer.Models import Transformer
-from transformer.Optim import ScheduledOptim
+from .transformer import Constants
+from .transformer.Models import Transformer
+from .transformer.Optim import ScheduledOptim
 
 torch.backends.cudnn.deterministic = False
 torch.backends.cudnn.benchmark = False

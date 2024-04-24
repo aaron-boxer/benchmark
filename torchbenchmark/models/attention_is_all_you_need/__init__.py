@@ -9,10 +9,10 @@ import torch
 import torch.nn.functional as F
 import torch.optim as optim
 
-from torchbenchmark.util.torchtext_legacy.field import Field
-from torchbenchmark.util.torchtext_legacy.data import Dataset
-from torchbenchmark.util.torchtext_legacy.iterator import BucketIterator
-from torchbenchmark.util.torchtext_legacy.translation import TranslationDataset
+from .util.torchtext_legacy.field import Field
+from .util.torchtext_legacy.data import Dataset
+from .util.torchtext_legacy.iterator import BucketIterator
+from .util.torchtext_legacy.translation import TranslationDataset
 
 from .transformer import Constants
 from .transformer.Models import Transformer

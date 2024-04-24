@@ -26,7 +26,7 @@ def _with_sys_path(path):
 package_root = pathlib.Path(os.path.dirname(os.path.realpath(__file__))).parent.parent.parent
 
 with _with_sys_path(package_root):
-    from util.torchtext_legacy.data import Dataset
+    from torchbenchmark.models.attention_is_all_you_need.util.torchtext_legacy.data import Dataset
 
 
 def load_model(opt, device):
