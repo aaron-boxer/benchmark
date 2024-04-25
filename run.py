@@ -28,6 +28,11 @@ from torchbenchmark.util.experiment.instantiator import (
 )
 from torchbenchmark.util.experiment.metrics import get_model_flops, get_peak_memory
 
+try:
+    import torch_directml
+    has_dml = True
+except ImportError:
+    has_dml = False
 
 if not hasattr(torch.version, "git_version"):
     from pytorch.benchmark.fb.run_utils import trace_handler, usage_report_logger
@@ -37,6 +42,8 @@ else:
 
 WARMUP_ROUNDS = 3
 SUPPORT_DEVICE_LIST = ["cpu", "cuda"]
+if has_dml:
+    SUPPORT_DEVICE_LIST.append("dml")
 if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
     SUPPORT_DEVICE_LIST.append("mps")
 SUPPORT_PROFILE_LIST = [

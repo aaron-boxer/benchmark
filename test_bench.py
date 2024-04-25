@@ -22,6 +22,11 @@ from torchbenchmark._components._impl.workers import subprocess_worker
 from torchbenchmark.util.machine_config import get_machine_state
 from torchbenchmark.util.metadata_utils import skip_by_metadata
 
+try:
+    import torch_directml
+    has_dml = True
+except ImportError:
+    has_dml = False
 
 def pytest_generate_tests(metafunc):
     # This is where the list of models to test can be configured
@@ -30,6 +35,9 @@ def pytest_generate_tests(metafunc):
 
     if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
         devices.append("mps")
+
+    if has_dml:
+        devices.append("dml")
 
     if metafunc.config.option.cpu_only:
         devices = ["cpu"]

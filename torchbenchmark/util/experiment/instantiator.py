@@ -17,6 +17,21 @@ from torchbenchmark import (
     ModelTask,
 )
 from torchbenchmark.util.model import BenchmarkModel
+try:
+    import torch_directml
+    has_dml = True
+except ImportError:
+    has_dml = False
+
+# $env:CUDA_VISIBLE_DEVICES=1
+dml_device = None
+if has_dml:
+    cuda_visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
+    dml_device = torch_directml.device(0)
+    if cuda_visible_devices is not None:
+        devices = cuda_visible_devices.split(',')
+        first_dev = int(devices[0])
+        dml_device = torch_directml.device(first_dev)
 
 WORKER_TIMEOUT = 3600  # seconds
 BS_FIELD_NAME = "batch_size"
@@ -93,10 +108,10 @@ def load_model(config: TorchBenchModelConfig) -> BenchmarkModel:
                 f"Error: The model {config.name} cannot be found at either core or canary model set."
             )
             exit(-1)
-
+    corrected_device = config.device if (not has_dml or (config.device != 'dml')) else dml_device
     model_instance = Model(
         test=config.test,
-        device=config.device,
+        device=corrected_device,
         batch_size=config.batch_size,
         extra_args=config.extra_args,
     )
@@ -124,6 +139,8 @@ def list_devices() -> List[str]:
 
     if torch.cuda.is_available():
         devices.append("cuda")
+    if has_dml:
+        devices.append("dml")
     return devices
 
 
