@@ -184,13 +184,13 @@ class Model(BenchmarkModel):
 
     def _load_model(checkpoint_path, device, precision, use_tp):
         with torch.device('meta'):
-            model = Transformer.from_name(checkpoint_path.parent.name)
+            self.model = Transformer.from_name(checkpoint_path.parent.name)
 
         checkpoint = torch.load(str(checkpoint_path), mmap=True, weights_only=True)
-        model.load_state_dict(checkpoint, assign=True)
+        self.model.load_state_dict(checkpoint, assign=True)
         
-        model = model.to(device=device, dtype=precision)
-        return model.eval()
+        self.model = self.model.to(device=device, dtype=precision)
+        return self.model.eval()
 
     B_INST, E_INST = "[INST]", "[/INST]"
 
@@ -227,7 +227,7 @@ class Model(BenchmarkModel):
 
         print("Loading model ...")
         t0 = time.time()
-        self.model = _load_model(checkpoint_path, device, precision, use_tp)
+        _load_model(checkpoint_path, device, precision, use_tp)
 
         print(f"Time to load model: {time.time() - t0:.02f} seconds")
         from transformers import AutoTokenizer
