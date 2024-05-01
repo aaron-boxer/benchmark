@@ -49,15 +49,17 @@ class Model(BenchmarkModel):
         parser.add_argument('--max_new_tokens', type=int, default=100, help='Maximum number of new tokens.')
         parser.add_argument('--top_k', type=int, default=200, help='Top-k for sampling.')
         parser.add_argument('--temperature', type=float, default=0.8, help='Temperature for sampling.')
-        parser.add_argument('--checkpoint_path', type=Path, default=Path("checkpoints/meta-Transformer/Transformer-2-7b-chat-hf/model.pth"), help='Model checkpoint path.')
+        parser.add_argument('--checkpoint_path', type=Path, default=Path("torchbenchmark/models/phi2/.data/checkpoints/microsoft/phi2/model.pth"), help='Model checkpoint path.')
         parser.add_argument('--profile', type=Path, default=None, help='Profile path.')
         parser.add_argument('--precision', type=str, default='float32', help='Model Inference precision.')
 
-        args = parser.parse_args()
-        main(
-            args.prompt, args.interactive, args.num_samples, args.max_new_tokens, args.top_k,
-            args.temperature, args.checkpoint_path, args.profile, args.precision
-        )
+        #args = parser.parse_args()
+        #self.main(
+        #    args.prompt, args.interactive, args.num_samples, args.max_new_tokens, args.top_k,
+        #    args.temperature, args.checkpoint_path, args.profile, args.precision
+        #)
+        self.main("Hello my name is Frank")
+
         self.example_inputs = (
             torch.randn((self.batch_size, 3, 32, 32), device=self.device),
         )
@@ -182,7 +184,7 @@ class Model(BenchmarkModel):
             tokens = [tokenizer.encode(tokenizer.bos_token)[0]] + tokens
         return torch.tensor(tokens, dtype=torch.int, device=device)
 
-    def _load_model(checkpoint_path, device, precision, use_tp):
+    def _load_model(self, checkpoint_path, device, precision, use_tp):
         with torch.device('meta'):
             self.model = Transformer.from_name(checkpoint_path.parent.name)
 
@@ -194,14 +196,14 @@ class Model(BenchmarkModel):
 
     B_INST, E_INST = "[INST]", "[/INST]"
 
-    def main(
+    def main(self,
         prompt: str = "Hello, my name is",
         interactive: bool = False,
         num_samples: int = 5,
         max_new_tokens: int = 100,
         top_k: int = 200,
         temperature: float = 0.8,
-        checkpoint_path: Path = Path("./.data/checkpoints/meta-Transformer/Transformer-2-7b-chat-hf/model.pth"),
+        checkpoint_path: Path = Path("torchbenchmark\models\phi2\.data\checkpoints\microsoft\phi-2\model.pth"),
         profile: Optional[Path] = None,
         precision: str = 'float32'
     ) -> None:
@@ -222,12 +224,13 @@ class Model(BenchmarkModel):
                 print = lambda *args, **kwargs: None
 
         print(f"Using device={device}")
-        precision = torch.float32 if args.precision == 'float32' else torch.float16
+        #precision = torch.float32 if args.precision == 'float32' else torch.float16
+        precision = torch.float32
         is_chat = "chat" in str(checkpoint_path)
 
         print("Loading model ...")
         t0 = time.time()
-        _load_model(checkpoint_path, device, precision, use_tp)
+        self._load_model(checkpoint_path, device, precision, use_tp)
 
         print(f"Time to load model: {time.time() - t0:.02f} seconds")
         from transformers import AutoTokenizer
