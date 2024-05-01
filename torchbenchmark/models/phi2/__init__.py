@@ -36,7 +36,7 @@ class Model(BenchmarkModel):
     DEFAULT_TRAIN_BSIZE = 16
     DEFAULT_EVAL_BSIZE = 16
 
-    def __init__(self, test, device, batch_size=DEFAULT_TRAIN_BSIZE, extra_args=[]):
+    def __init__(self, test, device, batch_size=None, extra_args=[]):
         super().__init__(test=test, device=device,
                          batch_size=batch_size, extra_args=extra_args)
 
@@ -58,9 +58,6 @@ class Model(BenchmarkModel):
             args.prompt, args.interactive, args.num_samples, args.max_new_tokens, args.top_k,
             args.temperature, args.checkpoint_path, args.profile, args.precision
         )
-
-        self.model = Transformer()
-        self.model.to(device)
         self.example_inputs = (
             torch.randn((self.batch_size, 3, 32, 32), device=self.device),
         )
@@ -230,7 +227,7 @@ class Model(BenchmarkModel):
 
         print("Loading model ...")
         t0 = time.time()
-        model = _load_model(checkpoint_path, device, precision, use_tp)
+        self.model = _load_model(checkpoint_path, device, precision, use_tp)
 
         print(f"Time to load model: {time.time() - t0:.02f} seconds")
         from transformers import AutoTokenizer
@@ -265,7 +262,7 @@ class Model(BenchmarkModel):
                 prof = torch.profiler.profile(record_shapes=True, with_stack=True, profile_memory=True)
             with prof:
                 y = generate(
-                    model,
+                    self.model,
                     encoded,
                     max_new_tokens,
                     interactive=interactive,
