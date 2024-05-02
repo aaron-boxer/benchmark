@@ -58,7 +58,7 @@ class Model(BenchmarkModel):
         #    args.prompt, args.interactive, args.num_samples, args.max_new_tokens, args.top_k,
         #    args.temperature, args.checkpoint_path, args.profile, args.precision
         #)
-        self.main("Hello my name is Frank")
+        self.main("Hello my name is Frank", False, 1)
 
         self.example_inputs = (
             torch.randn((self.batch_size, 3, 32, 32), device=self.device),
