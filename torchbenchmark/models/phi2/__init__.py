@@ -86,11 +86,11 @@ class Model(BenchmarkModel):
             out=self.model(self.images)
         return (out,)
 
-    def multinomial_sample_one_no_sync(probs_sort): # Does multinomial sampling without a cuda synchronization
+    def multinomial_sample_one_no_sync(self, probs_sort): # Does multinomial sampling without a cuda synchronization
         q = torch.empty_like(probs_sort).exponential_(1)
         return torch.argmax(probs_sort / q, dim=-1, keepdim=True).to(dtype=torch.int)
 
-    def logits_to_probs(logits, temperature: float = 1.0, top_k: Optional[int] = None):
+    def logits_to_probs(self, logits, temperature: float = 1.0, top_k: Optional[int] = None):
         logits = logits / max(temperature, 1e-5)
 
         if top_k is not None:
@@ -100,27 +100,27 @@ class Model(BenchmarkModel):
         probs = torch.nn.functional.softmax(logits, dim=-1)
         return probs
 
-    def sample(logits, temperature: float = 1.0, top_k: Optional[int] = None):
-        probs = logits_to_probs(logits[0, -1], temperature, top_k)
-        idx_next = multinomial_sample_one_no_sync(probs)
+    def sample(self, logits, temperature: float = 1.0, top_k: Optional[int] = None):
+        probs = self.logits_to_probs(logits[0, -1], temperature, top_k)
+        idx_next =self.multinomial_sample_one_no_sync(probs)
         return idx_next, probs
 
-    def prefill(model: Transformer, x: torch.Tensor, input_pos: torch.Tensor, **sampling_kwargs) -> torch.Tensor:
+    def prefill(self, model: Transformer, x: torch.Tensor, input_pos: torch.Tensor, **sampling_kwargs) -> torch.Tensor:
         # input_pos: [B, S]
         logits = model(x, input_pos)
-        return sample(logits, **sampling_kwargs)[0]
+        return self.sample(logits, **sampling_kwargs)[0]
 
-    def decode_one_token(model: Transformer, x: torch.Tensor, input_pos: torch.Tensor, **sampling_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
+    def decode_one_token(self, model: Transformer, x: torch.Tensor, input_pos: torch.Tensor, **sampling_kwargs) -> Tuple[torch.Tensor, torch.Tensor]:
         # input_pos: [B, 1]
         assert input_pos.shape[-1] == 1
         logits = model(x, input_pos)
-        return sample(logits, **sampling_kwargs)
+        return self.sample(logits, **sampling_kwargs)
 
-    def decode_n_tokens(model: Transformer, cur_token: torch.Tensor, input_pos: torch.Tensor, num_new_tokens: int, callback=lambda _: _, **sampling_kwargs):
+    def decode_n_tokens(self, model: Transformer, cur_token: torch.Tensor, input_pos: torch.Tensor, num_new_tokens: int, callback=lambda _: _, **sampling_kwargs):
         new_tokens, new_probs = [], []
         for i in range(num_new_tokens):
             with torch.backends.cuda.sdp_kernel(enable_flash=False, enable_mem_efficient=False, enable_math=True): # Actually better for Inductor to codegen attention here
-                next_token, next_prob = decode_one_token(
+                next_token, next_prob = self.decode_one_token(
                     model, cur_token, input_pos, **sampling_kwargs
                 )
                 input_pos += 1
@@ -132,11 +132,11 @@ class Model(BenchmarkModel):
         return new_tokens, new_probs
 
 
-    def model_forward(model, x, input_pos):
+    def model_forward(self, model, x, input_pos):
         return model(x, input_pos)
 
     @torch.no_grad()
-    def generate(
+    def generate(self,
         model: Transformer,
         prompt: torch.Tensor,
         max_new_tokens: int,
@@ -168,17 +168,17 @@ class Model(BenchmarkModel):
         seq = empty
         input_pos = torch.arange(0, T, device=device)
 
-        next_token = prefill(model, prompt.view(1, -1), input_pos, **sampling_kwargs)
+        next_token = self.prefill(model, prompt.view(1, -1), input_pos, **sampling_kwargs)
         seq[T] = next_token
 
         input_pos = torch.tensor([T], device=device, dtype=torch.int)
 
-        generated_tokens, _ = decode_n_tokens(model, next_token.view(1, -1), input_pos, max_new_tokens - 1, callback=callback, **sampling_kwargs)
+        generated_tokens, _ = self.decode_n_tokens(model, next_token.view(1, -1), input_pos, max_new_tokens - 1, callback=callback, **sampling_kwargs)
         seq[T + 1:] = torch.cat(generated_tokens)
 
         return seq
 
-    def encode_tokens(tokenizer, string, bos=False, device='cuda'):
+    def encode_tokens(self, tokenizer, string, bos=False, device='cuda'):
         tokens = tokenizer.encode(string)
         if bos:
             tokens = [tokenizer.encode(tokenizer.bos_token)[0]] + tokens
@@ -230,17 +230,17 @@ class Model(BenchmarkModel):
 
         print("Loading model ...")
         t0 = time.time()
-        self._load_model(checkpoint_path, device, precision, use_tp)
+        self.model = self._load_model(checkpoint_path, device, precision, use_tp)
 
         print(f"Time to load model: {time.time() - t0:.02f} seconds")
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
-        encoded = encode_tokens(tokenizer, prompt, bos=False, device=device)
+        encoded = self.encode_tokens(tokenizer, prompt, bos=False, device=device)
         prompt_length = encoded.size(0)
 
         torch.manual_seed(1234)
 
-        model_size = sum([p.numel() * p.dtype.itemsize for p in itertools.chain(model.parameters(), model.buffers())])
+        model_size = sum([p.numel() * p.dtype.itemsize for p in itertools.chain(self.model.parameters(), self.model.buffers())])
         aggregate_metrics = {
             'tokens_per_sec': [],
             'accept_counts': [],
@@ -252,7 +252,7 @@ class Model(BenchmarkModel):
                 prompt = input("What is your prompt? ")
                 if is_chat:
                     prompt = f"{B_INST} {prompt.strip()} {E_INST}"
-                encoded = encode_tokens(tokenizer, prompt, bos=False, device=device)
+                encoded = self.encode_tokens(tokenizer, prompt, bos=False, device=device)
                 # encoded = tokenizer(prompt, return_attention_mask=False, return_tensors="pt")["input_ids"][0].to(torch.int32).cuda()
 
             callback = lambda x : x
@@ -264,7 +264,7 @@ class Model(BenchmarkModel):
                 torch.profiler._utils._init_for_cuda_graphs()
                 prof = torch.profiler.profile(record_shapes=True, with_stack=True, profile_memory=True)
             with prof:
-                y = generate(
+                y = self.generate(
                     self.model,
                     encoded,
                     max_new_tokens,
