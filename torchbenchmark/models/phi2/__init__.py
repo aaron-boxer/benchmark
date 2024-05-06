@@ -23,7 +23,7 @@ from typing import Optional, Tuple
 import torch_directml
 import torch
 
-device = torch_directml.device(torch_directml.default_device())
+global_device = torch_directml.device(1)
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
@@ -39,34 +39,23 @@ class Model(BenchmarkModel):
     def __init__(self, test, device, batch_size=None, extra_args=[]):
         super().__init__(test=test, device=device,
                          batch_size=batch_size, extra_args=extra_args)
+        device = global_device
+        checkpoint_path = Path(Path("torchbenchmark\models\phi2\.data\checkpoints\microsoft\phi-2\model.pth"))
+        global print
+        rank = None
+        use_tp = rank is not None
+        if use_tp:
+            if rank != 0:
+                print = lambda *args, **kwargs: None
 
-        import argparse
-        parser = argparse.ArgumentParser(description='Your CLI description.')
+        print(f"Using device={device}")
+        precision = torch.float32
+        is_chat = "chat" in str(checkpoint_path)
 
-        parser.add_argument('--prompt', type=str, default="Hello, my name is ", help='Input prompt.')
-        parser.add_argument('--interactive', action='store_true', help='Whether to launch in interactive mode')
-        parser.add_argument('--num_samples', type=int, default=5, help='Number of samples.')
-        parser.add_argument('--max_new_tokens', type=int, default=100, help='Maximum number of new tokens.')
-        parser.add_argument('--top_k', type=int, default=200, help='Top-k for sampling.')
-        parser.add_argument('--temperature', type=float, default=0.8, help='Temperature for sampling.')
-        parser.add_argument('--checkpoint_path', type=Path, default=Path("torchbenchmark/models/phi2/.data/checkpoints/microsoft/phi2/model.pth"), help='Model checkpoint path.')
-        parser.add_argument('--profile', type=Path, default=None, help='Profile path.')
-        parser.add_argument('--precision', type=str, default='float32', help='Model Inference precision.')
-
-        #args = parser.parse_args()
-        #self.main(
-        #    args.prompt, args.interactive, args.num_samples, args.max_new_tokens, args.top_k,
-        #    args.temperature, args.checkpoint_path, args.profile, args.precision
-        #)
-        self.main("Hello my name is Frank", False, 1)
-
-        self.example_inputs = (
-            torch.randn((self.batch_size, 3, 32, 32), device=self.device),
-        )
-        self.example_target = torch.randint(0, 10, (self.batch_size,), device=self.device)
-        dataset = data.TensorDataset(self.example_inputs[0], self.example_target)
-        self.optimizer = optim.SGD(self.model.parameters(), lr=0.1, momentum=0.9, weight_decay=1e-4)
-        self.criterion = nn.CrossEntropyLoss()
+        print("Loading model ...")
+        t0 = time.time()
+        self.model = self._load_model(checkpoint_path, device, precision, use_tp)
+        print(f"Time to load model: {time.time() - t0:.02f} seconds")
 
     def get_module(self):
         return self.model, self.example_inputs
@@ -82,9 +71,7 @@ class Model(BenchmarkModel):
     
     def eval(self):
         self.model.eval()
-        with torch.no_grad():
-            out=self.model(self.images)
-        return (out,)
+        self.main("Hello my name is Frank", False, 1)
 
     def multinomial_sample_one_no_sync(self, probs_sort): # Does multinomial sampling without a cuda synchronization
         q = torch.empty_like(probs_sort).exponential_(1)
@@ -209,7 +196,7 @@ class Model(BenchmarkModel):
     ) -> None:
         """Generates text samples based on a pre-trained Transformer model and tokenizer.
         """
-        global device
+        device = global_device
         assert checkpoint_path.is_file(), checkpoint_path
 
         # tokenizer_path = checkpoint_path.parent / "tokenizer.model"
@@ -227,12 +214,6 @@ class Model(BenchmarkModel):
         #precision = torch.float32 if args.precision == 'float32' else torch.float16
         precision = torch.float32
         is_chat = "chat" in str(checkpoint_path)
-
-        print("Loading model ...")
-        t0 = time.time()
-        self.model = self._load_model(checkpoint_path, device, precision, use_tp)
-
-        print(f"Time to load model: {time.time() - t0:.02f} seconds")
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
         encoded = self.encode_tokens(tokenizer, prompt, bos=False, device=device)
