@@ -8,6 +8,8 @@ from torchbenchmark.tasks import NLP
 import torch
 from .model import ModelArgs, Transformer
 import torch
+from pathlib import Path
+
 
 class Model(BenchmarkModel):
     task = NLP.LANGUAGE_MODELING
@@ -17,10 +19,16 @@ class Model(BenchmarkModel):
         super().__init__(test=test, device=device, batch_size=batch_size, extra_args=extra_args)
         self.model_args = ModelArgs(vocab_size=32000,device=self.device)
         torch.set_default_device(self.device)
-        self.model = Transformer(self.model_args).to(self.device)
+        with torch.device('meta'):
+            self.model = Transformer.from_name("meta-llama/Llama-2-7b-chat-hf")
+        checkpoint_path = Path(r"..\pytorch-directml-plugin\samples\llm\checkpoints\meta-llama\Llama-2-7b-chat-hf\model.pth")
+        print(checkpoint_path)
+        checkpoint = torch.load(str(checkpoint_path), mmap=True, weights_only=True)
+        self.model.load_state_dict(checkpoint, assign=True)
+        self.model = self.model.to(device)
+        self.batch_size = 1
         self.seq_len = 32
-        self.example_inputs = (torch.ones([self.batch_size, self.seq_len], dtype=torch.int).to(self.device), 1)
-
+        self.example_inputs = (torch.ones([self.batch_size, self.seq_len], dtype=torch.int).to(self.device), torch.arange(self.seq_len).to(torch.int))
         
     def get_module(self):
         return self.model, self.example_inputs
@@ -36,5 +44,6 @@ class Model(BenchmarkModel):
 
     def eval(self):
         self.model.eval()
+        self.model.setup_caches(self.batch_size, 2048)
         out=self.model(*self.example_inputs)
         return (out,)
