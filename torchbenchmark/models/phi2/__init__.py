@@ -20,10 +20,7 @@ import time
 from pathlib import Path
 from typing import Optional, Tuple
 
-import torch_directml
 import torch
-
-global_device = torch_directml.device(1)
 
 # support running without installing as a package
 wd = Path(__file__).parent.parent.resolve()
@@ -39,7 +36,6 @@ class Model(BenchmarkModel):
     def __init__(self, test, device, batch_size=None, extra_args=[]):
         super().__init__(test=test, device=device,
                          batch_size=batch_size, extra_args=extra_args)
-        device = global_device
         checkpoint_path = Path(Path("torchbenchmark\models\phi2\.data\checkpoints\microsoft\phi-2\model.pth"))
         global print
         rank = None
@@ -196,7 +192,6 @@ class Model(BenchmarkModel):
     ) -> None:
         """Generates text samples based on a pre-trained Transformer model and tokenizer.
         """
-        device = global_device
         assert checkpoint_path.is_file(), checkpoint_path
 
         # tokenizer_path = checkpoint_path.parent / "tokenizer.model"
@@ -210,13 +205,13 @@ class Model(BenchmarkModel):
             if rank != 0:
                 print = lambda *args, **kwargs: None
 
-        print(f"Using device={device}")
+        print(f"Using device={self.device}")
         #precision = torch.float32 if args.precision == 'float32' else torch.float16
         precision = torch.float32
         is_chat = "chat" in str(checkpoint_path)
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained("microsoft/phi-2")
-        encoded = self.encode_tokens(tokenizer, prompt, bos=False, device=device)
+        encoded = self.encode_tokens(tokenizer, prompt, bos=False, device=self.device)
         prompt_length = encoded.size(0)
 
         torch.manual_seed(1234)
