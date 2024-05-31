@@ -87,7 +87,7 @@ class Transformer(nn.Module):
         self.max_batch_size = max_batch_size
         dtype=self.output.weight.dtype
         for b in self.layers:
-            b.attention._init_rope(self.max_position_embeddings, self.rope_base, dtype=dtype)
+            b.attention._init_rope(self.max_position_embeddings, self.rope_base, dtype=dtype, device=self.config.device)
 
         self.causal_mask = torch.tril(
             torch.ones(self.config.n_head, self.max_seq_length, self.max_seq_length, dtype=torch.int32)
@@ -148,12 +148,12 @@ class Attention(nn.Module):
             wv = state_dict.pop(prefix + "wv.weight")
             state_dict[prefix + "wqkv.weight"] = torch.cat([wq, wk, wv])
     
-    def _init_rope(self, max_position_embeddings=4096, rope_base=10000.0, dtype=torch.float16):
+    def _init_rope(self, max_position_embeddings=4096, rope_base=10000.0, dtype=torch.float16,device=None):
         self.min_position = 0
         self.past_key_tensor = None
         self.past_value_tensor = None
         self.rotary_emb = RotaryEmbedding(
-            self.head_dim, max_position_embeddings=max_position_embeddings, base=rope_base, dtype=dtype)
+            self.head_dim, max_position_embeddings=max_position_embeddings, base=rope_base, dtype=dtype, device=device)
 
     def forward(self, x: Tensor, mask: Tensor, input_pos: Optional[Tensor] = None) -> Tensor:
         bsz, seqlen, _ = x.shape
@@ -212,7 +212,8 @@ class RotaryEmbedding(nn.Module):
     def __init__(self, dim, max_position_embeddings=4096, base=10000, dtype=torch.float16, device=None):
         super().__init__()
         self.dtype = dtype
-        device = torch_directml.device(torch_directml.default_device())
+        if (device is None):
+            device = torch_directml.device(torch_directml.default_device())
         self.dim = dim
         self.max_position_embeddings = max_position_embeddings
         self.base = base
