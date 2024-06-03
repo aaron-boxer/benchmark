@@ -28,7 +28,7 @@ class Model(BenchmarkModel):
         self.model.config.device = device
         self.model.load_state_dict(checkpoint, assign=True)
         self.model = self.model.to(device)
-        self.batch_size = 1
+        #self.batch_size = 1
         self.seq_len = 32
         self.example_inputs = (torch.ones([self.batch_size, self.seq_len], dtype=torch.int).to(device), torch.arange(self.seq_len).to(torch.int))
         
@@ -46,6 +46,6 @@ class Model(BenchmarkModel):
 
     def eval(self):
         self.model.eval()
-        self.model.setup_caches(self.batch_size, 2048)
+        self.model.setup_caches(self.batch_size, 64)
         out=self.model(*self.example_inputs)
         return (out,)

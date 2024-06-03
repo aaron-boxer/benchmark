@@ -89,12 +89,16 @@ class Transformer(nn.Module):
         for b in self.layers:
             b.attention._init_rope(self.max_position_embeddings, self.rope_base, dtype=dtype, device=self.config.device)
 
+        #self.causal_mask = torch.tril(
+        #    torch.ones(self.config.n_head, self.max_seq_length, self.max_seq_length, dtype=torch.int32)
+        #)
         self.causal_mask = torch.tril(
-            torch.ones(self.config.n_head, self.max_seq_length, self.max_seq_length, dtype=torch.int32)
+            torch.ones(self.max_batch_size, self.config.n_head, self.max_seq_length, self.max_seq_length, dtype=torch.int32)
         )
 
     def forward(self, idx: Tensor, input_pos: Optional[Tensor] = None) -> Tensor:
-        mask = self.causal_mask[None, :, input_pos, :input_pos[-1].item()+1]
+        #mask = self.causal_mask[None, :, input_pos, :input_pos[-1].item()+1]
+        mask = self.causal_mask[:, :, input_pos, :input_pos[-1].item()+1]
         x = self.tok_embeddings(idx)
 
         for _, layer in enumerate(self.layers):
